@@ -86,7 +86,7 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 	struct sk_buff *skb=NULL;
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
 
-#if 1    
+#if 0    
     // TEST CODE Periodically exercise the tipc memory
     // numBufAlloc++;
     if (1) // (numBufAlloc&0xf)==0)
