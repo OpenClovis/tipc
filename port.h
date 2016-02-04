@@ -42,7 +42,7 @@
 #include "msg.h"
 #include "node_subscr.h"
 
-#define TIPC_FLOW_CONTROL_WIN 512
+#define TIPC_FLOW_CONTROL_WIN (512*2)  // OpenClovis: *2 double flow control window
 
 typedef void (*tipc_msg_err_event) (void *usr_handle, u32 portref,
 		struct sk_buff **buf, unsigned char const *data,

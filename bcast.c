@@ -43,7 +43,8 @@
 
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */
 
-#define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
+/* OpenClovis: Increased to reflect heavy broadcast use within tightly coupled distributed systems */
+#define BCLINK_WIN_DEFAULT 500		/* bcast link window size (default) */
 
 /**
  * struct bcbearer_pair - a pair of bearers used by broadcast link
@@ -311,6 +312,11 @@ static void bclink_send_nack(struct tipc_node *n_ptr)
 
 		n_ptr->bclink.nack_sync = tipc_own_tag;
 	}
+    else // OpenClovis:  Don't silently fail
+    {
+        drop_log("Unable to send NACK\n");
+    }
+    
 }
 
 /**

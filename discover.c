@@ -86,6 +86,11 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg_set_bc_netid(msg, tipc_net_id);
 		msg_set_media_addr(msg, &b_ptr->addr);
 	}
+    else
+    {
+        drop_log("Unable to send discovery init message");
+    }
+    
 	return buf;
 }
 
@@ -135,27 +140,51 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 
 	/* Validate discovery message from requesting node */
 	if (net_id != tipc_net_id)
+    {
+        drop_log("Dropped discovery packet, destined for another TIPC network [0x%x]\n", net_id);
 		return;
+    }
+    
 	if (!tipc_addr_domain_valid(dest))
+    {
+        drop_log("Dropped discovery packet, invalid domain [0x%x]\n", dest);
 		return;
+    }
+    
 	if (!tipc_addr_node_valid(orig))
+    {
+        drop_log("Dropped discovery packet, invalid origination node [0x%x]\n", orig);        
 		return;
+    }
+    
 	if (orig == tipc_own_addr) {
 		if (memcmp(&media_addr, &b_ptr->addr, sizeof(media_addr)))
 			disc_dupl_alert(b_ptr, tipc_own_addr, &media_addr);
 		return;
 	}
 	if (!tipc_in_scope(dest, tipc_own_addr))
+    {
+        drop_log("Dropped discovery packet, destination address [0x%x] is not my address scope\n", dest);
 		return;
+    }
+    
 	if (!tipc_in_scope(b_ptr->link_req->domain, orig))
+    {
+        drop_log("Dropped discovery packet, origin address [0x%x] is not in link request domain scope\n", dest);        
 		return;
+    }
+    
 
 	/* Locate structure corresponding to requesting node */
 	n_ptr = tipc_node_find(orig);
 	if (!n_ptr) {
 		n_ptr = tipc_node_create(orig);
 		if (!n_ptr)
+        {
+            drop_log("Dropped discovery packet, failed to locate or create new node with origin address [0x%x]\n", orig);
 			return;
+        }
+        
 	}
 	tipc_node_lock(n_ptr);
 
@@ -165,6 +194,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	if (!link) {
 		link = tipc_link_create(n_ptr, b_ptr, &media_addr);
 		if (!link) {
+            drop_log("Dropped discovery packet, failed to create Link End Point\n");
 			tipc_node_unlock(n_ptr);
 			return;
 		}
@@ -317,11 +347,16 @@ int tipc_disc_create(struct tipc_bearer *b_ptr,
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
+    {
+        drop_log("[%s:%d]Discovery msg creation failed, no memory\n", __FUNCTION__, __LINE__);
 		return -ENOMEM;
+    }
+    
 
 	req->buf = tipc_disc_init_msg(DSC_REQ_MSG, dest_domain, b_ptr);
 	if (!req->buf) {
 		kfree(req);
+        drop_log("[%s:%d] Discovery Msg Init Failed \n", __FUNCTION__, __LINE__);
 		return -ENOMSG;
 	}
 

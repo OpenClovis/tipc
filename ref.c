@@ -113,7 +113,11 @@ int tipc_ref_table_init(u32 requested_size, u32 start)
 	table = __vmalloc(actual_size * sizeof(struct reference),
 			  GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
 	if (table == NULL)
+    {
+        drop_log("Failed to create reference table, no memory\n"); 
 		return -ENOMEM;
+    }
+    
 
 	tipc_ref_table.entries = table;
 	tipc_ref_table.capacity = requested_size;

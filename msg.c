@@ -90,7 +90,11 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 
 	*buf = tipc_buf_acquire(sz);
 	if (!(*buf))
+    {
+        drop_log("Failed build msg for specified header and data, no memory\n");
 		return -ENOMEM;
+    }
+    
 	skb_copy_to_linear_data(*buf, hdr, hsz);
 	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
 		if (likely(usrmem))
@@ -108,6 +112,7 @@ int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 
 	buf_discard(*buf);
 	*buf = NULL;
+    drop_log("Msg build failed");
 	return -EFAULT;
 }
 

@@ -14,8 +14,6 @@ __attribute__((section(".gnu.linkonce.this_module"))) = {
  .arch = MODULE_ARCH_INIT,
 };
 
-MODULE_INFO(intree, "Y");
-
 static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
@@ -51,6 +49,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x80fe590d, "sock_no_mmap" },
 	{ 0x71de9b3f, "_copy_to_user" },
 	{ 0xd5f2172f, "del_timer_sync" },
+	{ 0xa3213bc, "skb_queue_purge" },
 	{ 0xe679b8f2, "sock_no_socketpair" },
 	{ 0xf3d18871, "sk_alloc" },
 	{ 0xdc8d1dde, "_raw_spin_trylock_bh" },
@@ -73,10 +72,12 @@ __attribute__((section("__versions"))) = {
 	{ 0x704819ff, "dev_remove_pack" },
 	{ 0x8834396c, "mod_timer" },
 	{ 0xf699bae9, "netlink_unicast" },
+	{ 0xbe2c0274, "add_timer" },
 	{ 0x394637c6, "genl_register_family_with_ops" },
 	{ 0x86856070, "skb_pull" },
 	{ 0x3775290c, "init_net" },
 	{ 0x82072614, "tasklet_kill" },
+	{ 0x71305654, "skb_queue_tail" },
 	{ 0xc6cbbc89, "capable" },
 	{ 0xfedaeb91, "proto_register" },
 	{ 0x9f984513, "strrchr" },
@@ -109,6 +110,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x62737e1d, "sock_unregister" },
 	{ 0x32eeaded, "_raw_write_lock_bh" },
 	{ 0xfa66f77c, "finish_wait" },
+	{ 0x53d4ef12, "skb_dequeue" },
 	{ 0x50720c5f, "snprintf" },
 	{ 0xe6fdf77c, "dev_add_pack" },
 	{ 0xa3a5be95, "memmove" },
@@ -126,4 +128,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "02706F207F28866453A7CC9");
+MODULE_INFO(srcversion, "98CF434892078F4089AE25F");

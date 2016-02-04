@@ -102,6 +102,9 @@ static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 		tipc_msg_init(msg, NAME_DISTRIBUTOR, type, INT_H_SIZE, dest);
 		msg_set_size(msg, INT_H_SIZE + size);
 	}
+    else {
+		drop_log("Failed to allocate memory for publication message\n");
+ 	}
 	return buf;
 }
 

@@ -118,6 +118,7 @@ static void net_route_named_msg(struct sk_buff *buf)
 
 	if (!msg_named(msg)) {
 		buf_discard(buf);
+        drop_log("Routing named msg, but msg type is not a named msg\n");
 		return;
 	}
 
@@ -129,6 +130,7 @@ static void net_route_named_msg(struct sk_buff *buf)
 		tipc_net_route_msg(buf);
 		return;
 	}
+    drop_log("Reject msg with  no name error\n");
 	tipc_reject_msg(buf, TIPC_ERR_NO_NAME);
 }
 

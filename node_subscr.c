@@ -52,7 +52,7 @@ void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 
 	node_sub->node = tipc_node_find(addr);
 	if (!node_sub->node) {
-		warn("Node subscription rejected, unknown node 0x%x\n", addr);
+		drop_log("Node subscription rejected, unknown node [0x%x]\n", addr);
 		return;
 	}
 	node_sub->handle_node_down = handle_down;
@@ -70,7 +70,10 @@ void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
 {
 	if (!node_sub->node)
+    {
+        drop_log("Node unsubscription rejected, node is NULL\n");
 		return;
+    }
 
 	tipc_node_lock(node_sub->node);
 	list_del_init(&node_sub->nodesub_list);

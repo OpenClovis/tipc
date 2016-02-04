@@ -107,6 +107,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 
 	if (!net_eq(dev_net(dev), &init_net)) {
 		kfree_skb(buf);
+        drop_log("Invalid net device\n");
 		return 0;
 	}
 
@@ -117,6 +118,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 			return 0;
 		}
 	}
+    drop_log("Received packet is not for my node or broadcast packet\n");
 	kfree_skb(buf);
 	return 0;
 }
