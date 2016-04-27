@@ -50,7 +50,7 @@ u32 tipc_own_addr __read_mostly;
 int tipc_max_ports __read_mostly;
 int tipc_net_id __read_mostly;
 int tipc_remote_management __read_mostly;
-
+// unsigned int numBufAlloc=0; // OpenClovis
 
 /**
  * tipc_buf_acquire - creates a TIPC message buffer
@@ -63,10 +63,24 @@ int tipc_remote_management __read_mostly;
  */
 struct sk_buff *tipc_buf_acquire(u32 size)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb=NULL;
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
 
-	skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+#if 0 // TEST CODE Periodically exercise the tipc memory
+  
+    numBufAlloc++;
+    if (numBufAlloc&0xf)==0)
+    {
+        skb = tipc_mem_mgmt_get_buf(buf_size);
+        if (!skb) pr_warn("TIPC dedicated buffers exhausted.\n");
+    }    
+    // End test code
+#endif    
+    
+	if (!skb) skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+    if (!skb) skb = tipc_mem_mgmt_get_buf(buf_size);
+    if (!skb) pr_warn("TIPC dedicated buffers exhausted.  Packets dropped.\n");
+    
 	if (skb) {
 		skb_reserve(skb, BUF_HEADROOM);
 		skb_put(skb, size);
@@ -111,6 +125,9 @@ err:
  */
 static void tipc_core_stop(void)
 {
+#ifdef TIPC_LOCAL_MEM_MGMT
+	tipc_mem_mgmt_stop();
+#endif    
 	tipc_netlink_stop();
 	tipc_handler_stop();
 	tipc_cfg_stop();
@@ -129,6 +146,10 @@ static int tipc_core_start(void)
 
 	get_random_bytes(&tipc_random, sizeof(tipc_random));
 
+#ifdef TIPC_LOCAL_MEM_MGMT
+	tipc_mem_mgmt_init();
+#endif
+    
 	res = tipc_handler_start();
 	if (!res)
 		res = tipc_ref_table_init(tipc_max_ports, tipc_random);
@@ -153,7 +174,7 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	pr_info("Activated (version " TIPC_MOD_VER ")\n");
+	pr_info("Activated OpenClovis TIPC (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;

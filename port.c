@@ -364,7 +364,10 @@ static struct sk_buff *port_build_proto_msg(struct tipc_port *p_ptr,
 		msg_set_destport(msg, port_peerport(p_ptr));
 		msg_set_origport(msg, p_ptr->ref);
 		msg_set_msgcnt(msg, ack);
-	}
+	} else
+    {
+        drop_log("cannot create connection protocol message -- buffers exhausted");
+    }
 	return buf;
 }
 
@@ -397,7 +400,10 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 
 	rbuf = tipc_buf_acquire(rmsg_sz);
 	if (rbuf == NULL)
+    {
+        drop_log("Going to reject msg, buffer exhausted\n");
 		goto exit;
+    }   
 
 	rmsg = buf_msg(rbuf);
 	skb_copy_to_linear_data(rbuf, msg, rmsg_sz);
@@ -570,8 +576,11 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	case CONN_PROBE:
 		r_buf = port_build_proto_msg(p_ptr, CONN_PROBE_REPLY, 0);
 		break;
+    case CONN_PROBE_REPLY: /* no action required */
+        break;            
 	default:
-		/* CONN_PROBE_REPLY or unrecognized - no action required */
+		/* unrecognized */
+        wire_error_log("Unrecognized msg type\n");
 		break;
 	}
 	p_ptr->probing_state = CONFIRMED;
@@ -635,7 +644,10 @@ struct sk_buff *tipc_port_get_ports(void)
 
 	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
 	if (!buf)
+    {
+        drop_log("Unable to allocate memory for get ports reply msg\n");
 		return NULL;
+    }
 	rep_tlv = (struct tlv_desc *)buf->data;
 	pb = TLV_DATA(rep_tlv);
 	pb_len = ULTRA_STRING_MAX_LEN;
@@ -703,8 +715,10 @@ static void port_dispatcher_sigh(void *dummy)
 
 		p_ptr = tipc_port_lock(dref);
 		if (!p_ptr)
+        {
+            drop_log("Invalid reference pointer while sending acknowledge\n");
 			goto reject;	/* Port deleted while msg in queue */
-
+        }           
 		orig.ref = msg_origport(msg);
 		orig.node = msg_orignode(msg);
 		up_ptr = p_ptr->user_port;

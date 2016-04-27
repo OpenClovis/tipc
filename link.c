@@ -633,8 +633,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			l_ptr->fsm_msg_cnt = 0;
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 1, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
-			link_set_timer(l_ptr, cont_intv / 4);
-			break;
+			link_set_timer(l_ptr, cont_intv / 2); /* OpenClovis, was /4 but give more time for the other side to wake up */
+            break;
 		case RESET_MSG:
 			pr_info("%s<%s>, requested by peer\n", link_rst_msg,
 				l_ptr->name);
@@ -678,11 +678,11 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 					l_ptr->fsm_msg_cnt++;
 				}
 				link_set_timer(l_ptr, cont_intv);
-			} else if (l_ptr->fsm_msg_cnt < l_ptr->abort_limit) {
+			} else if (l_ptr->fsm_msg_cnt < l_ptr->abort_limit) {  /* OpenClovis debugging: l_ptr->abort_limit + 1000 to never reset the link */
 				tipc_link_send_proto_msg(l_ptr, STATE_MSG,
 							 1, 0, 0, 0, 0);
 				l_ptr->fsm_msg_cnt++;
-				link_set_timer(l_ptr, cont_intv / 4);
+				link_set_timer(l_ptr, cont_intv / 2); /* OpenClovis, was /4 but give more time for the other side to wake up */
 			} else {	/* Link has failed */
 				pr_warn("%s<%s>, peer not responding\n",
 					link_rst_msg, l_ptr->name);
@@ -960,7 +960,11 @@ static void tipc_link_send_sync(struct tipc_link *l)
 
 	buf = tipc_buf_acquire(INT_H_SIZE);
 	if (!buf)
+    {        
+        drop_log("packet dropped, can't get buffer");
 		return;
+    }
+    
 
 	msg = buf_msg(buf);
 	tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG, INT_H_SIZE, l->addr);
@@ -1628,15 +1632,26 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		/* Ensure bearer is still enabled */
 		if (unlikely(!b_ptr->active))
+        {
+            drop_log("Bearer is not enabled\n");
 			goto cont;
+        }
+        
 
 		/* Ensure message is well-formed */
 		if (unlikely(!link_recv_buf_validate(buf)))
+        {
+            wire_error_log("Msg received is not well-formed\n");
 			goto cont;
+        }
+        
 
 		/* Ensure message data is a single contiguous unit */
 		if (unlikely(skb_linearize(buf)))
+        {
+            drop_log("Msg received cannot be made contiguous\n");
 			goto cont;
+        }
 
 		/* Handle arrival of a non-unicast link message */
 		msg = buf_msg(buf);
@@ -1652,18 +1667,27 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		/* Discard unicast link messages destined for another node */
 		if (unlikely(!msg_short(msg) &&
 			     (msg_destnode(msg) != tipc_own_addr)))
+        {
+            drop_log("Unicast msg is for another node \n");
 			goto cont;
+        }
+        
 
 		/* Locate neighboring node that sent message */
 		n_ptr = tipc_node_find(msg_prevnode(msg));
 		if (unlikely(!n_ptr))
+        {
+            drop_log("Msg received from unknown node\n");
 			goto cont;
+        }
+        
 		tipc_node_lock(n_ptr);
 
 		/* Locate unicast link endpoint that should handle message */
 		l_ptr = n_ptr->links[b_ptr->identity];
 		if (unlikely(!l_ptr)) {
 			tipc_node_unlock(n_ptr);
+            drop_log("Unicast link endpoint is not found\n");
 			goto cont;
 		}
 
@@ -1677,6 +1701,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 
 		if (n_ptr->block_setup) {
 			tipc_node_unlock(n_ptr);
+            drop_log("Communication with sending node is blocked\n");
 			goto cont;
 		}
 
@@ -1884,6 +1909,7 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 	if (less(seq_no, mod(l_ptr->next_in_no))) {
 		l_ptr->stats.duplicates++;
 		kfree_skb(buf);
+        drop_log("Discard duplicate packet\n");
 		return;
 	}
 
@@ -1893,8 +1919,11 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 		l_ptr->stats.deferred_recv++;
 		if ((l_ptr->deferred_inqueue_sz % 16) == 1)
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
-	} else
+	} else {
+        drop_log("Adding OOS packet to deferred queue failed\n");  
 		l_ptr->stats.duplicates++;
+    }
+    
 }
 
 /*
@@ -1985,8 +2014,11 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 
 	buf = tipc_buf_acquire(msg_size);
 	if (!buf)
+    {
+        drop_log("failed to send protocol message, no memory\n");
 		return;
-
+    }
+    
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
 
 	/* Defer message if bearer is already blocked */
@@ -2184,7 +2216,11 @@ void tipc_link_changeover(struct tipc_link *l_ptr)
 	int split_bundles;
 
 	if (!tunnel)
+    {
+        drop_log("no tunnel");
 		return;
+    }
+    
 
 	if (!l_ptr->owner->permit_changeover) {
 		pr_warn("%speer did not permit changeover\n", link_co_err);
@@ -2290,6 +2326,10 @@ static struct sk_buff *buf_extract(struct sk_buff *skb, u32 from_pos)
 	eb = tipc_buf_acquire(size);
 	if (eb)
 		skb_copy_to_linear_data(eb, msg, size);
+    else
+    {
+        drop_log("Cannot extract embedded message -- buffer exhaustion");        
+    }        
 	return eb;
 }
 
@@ -2440,6 +2480,7 @@ static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 				buf_chain = buf_chain->next;
 				kfree_skb(buf);
 			}
+            drop_log("Failed chop msg, buffer exhaustion\n");
 			return -ENOMEM;
 		}
 		msg_set_size(&fragm_hdr, fragm_sz + INT_H_SIZE);
@@ -2545,7 +2586,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 			set_fragm_size(pbuf, fragm_sz);
 			set_expected_frags(pbuf, exp_fragm_cnt - 1);
 		} else {
-			pr_debug("Link unable to reassemble fragmented message\n");
+			drop_log("Link unable to reassemble fragmented message, buffer exhaustion\n");
 			kfree_skb(fbuf);
 			return -1;
 		}

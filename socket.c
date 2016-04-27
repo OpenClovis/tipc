@@ -164,8 +164,10 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 
 	/* Validate arguments */
 	if (unlikely(protocol != 0))
+    {
+        app_error_log("Failed to create socket, protocol not supported\n");   
 		return -EPROTONOSUPPORT;
-
+    }
 	switch (sock->type) {
 	case SOCK_STREAM:
 		ops = &stream_ops;
@@ -181,19 +183,23 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 		state = SS_READY;
 		break;
 	default:
+        app_error_log("Failed to create socket, Invalid socket type [%d]\n", sock->type);
 		return -EPROTOTYPE;
 	}
 
 	/* Allocate socket's protocol area */
 	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto);
 	if (sk == NULL)
+    {        
+        drop_log("create socket: out of memory\n");
 		return -ENOMEM;
-
+    }
 	/* Allocate TIPC port for socket to use */
 	tp_ptr = tipc_createport_raw(sk, &dispatch, &wakeupdispatch,
 				     TIPC_LOW_IMPORTANCE);
 	if (unlikely(!tp_ptr)) {
 		sk_free(sk);
+        drop_log("Failed to create new port for accepting connection\n");
 		return -ENOMEM;
 	}
 
@@ -315,7 +321,11 @@ static int bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
 		return tipc_withdraw(portref, 0, NULL);
 
 	if (uaddr_len < sizeof(struct sockaddr_tipc))
+    {
+        app_error_log("address length is < expected TIPC address length");
 		return -EINVAL;
+    }
+    
 	if (addr->family != AF_TIPC)
 		return -EAFNOSUPPORT;
 
@@ -499,12 +509,24 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 	int res = -EINVAL;
 
 	if (unlikely(!dest))
+    {
+        drop_log("Failed to send message, destination address required\n");
 		return -EDESTADDRREQ;
+    }
+    
 	if (unlikely((m->msg_namelen < sizeof(*dest)) ||
 		     (dest->family != AF_TIPC)))
+    {
+        drop_log("Failed to send message, bad name length or family\n");
 		return -EINVAL;
+    }
+
 	if (total_len > TIPC_MAX_USER_MSG_SIZE)
+    {
+        drop_log("Failed to send message, too large [%ld]\n", total_len);
 		return -EMSGSIZE;
+    }
+    
 
 	if (iocb)
 		lock_sock(sk);
@@ -513,15 +535,18 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 	if (unlikely(needs_conn)) {
 		if (sock->state == SS_LISTENING) {
 			res = -EPIPE;
-			goto exit;
+            drop_log("Failed to send msg, socket is listening\n");
+            goto exit;
 		}
 		if (sock->state != SS_UNCONNECTED) {
 			res = -EISCONN;
+            drop_log("Failed to send msg, socket is not connected\n");
 			goto exit;
 		}
 		if ((tport->published) ||
 		    ((sock->type == SOCK_STREAM) && (total_len != 0))) {
 			res = -EOPNOTSUPP;
+            drop_log("Failed to send msg, operation not supported\n");
 			goto exit;
 		}
 		if (dest->addrtype == TIPC_ADDR_NAME) {
@@ -539,7 +564,10 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 		if (dest->addrtype == TIPC_ADDR_NAME) {
 			res = dest_name_check(dest, m);
 			if (res)
+            {
+                drop_log("Failed to send msg, not permitted to send to destination port\n");   
 				break;
+            }            
 			res = tipc_send2name(tport->ref,
 					     &dest->addr.name.name,
 					     dest->addr.name.domain,
@@ -555,11 +583,15 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 		} else if (dest->addrtype == TIPC_ADDR_MCAST) {
 			if (needs_conn) {
 				res = -EOPNOTSUPP;
+                drop_log("Failed to send msg, multicast operation not supported\n");
 				break;
 			}
 			res = dest_name_check(dest, m);
 			if (res)
+            {
+                drop_log("Failed to send msg, not permitted to send to destination port\n");
 				break;
+            }            
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
 					     m->msg_iovlen,
@@ -612,7 +644,11 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 		return send_msg(iocb, sock, m, total_len);
 
 	if (total_len > TIPC_MAX_USER_MSG_SIZE)
+    {
+        drop_log("Failed send packet, too large\n");    
 		return -EMSGSIZE;
+    }
+    
 
 	if (iocb)
 		lock_sock(sk);
@@ -622,9 +658,15 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 	do {
 		if (unlikely(sock->state != SS_CONNECTED)) {
 			if (sock->state == SS_DISCONNECTING)
+            {
+                drop_log("Failed to send stream, socket state is disconnecting\n");
 				res = -EPIPE;
-			else
+			} else 
+            {
+                drop_log("Failed to send stream, socket state is not connected\n");
 				res = -ENOTCONN;
+            }
+            
 			break;
 		}
 
@@ -896,7 +938,10 @@ static int recv_msg(struct kiocb *iocb, struct socket *sock,
 
 	/* Catch invalid receive requests */
 	if (unlikely(!buf_len))
+    {
+        app_error_log("Receive buffer length is zero");
 		return -EINVAL;
+    }    
 
 	lock_sock(sk);
 
@@ -934,7 +979,8 @@ restart:
 	/* Discard an empty non-errored message & try again */
 	if ((!sz) && (!err)) {
 		advance_rx_queue(sk);
-		goto restart;
+		drop_log("Received an empty no-errored message, discarding\n");
+        goto restart;
 	}
 
 	/* Capture sender's address (optional) */
@@ -943,7 +989,11 @@ restart:
 	/* Capture ancillary data (optional) */
 	res = anc_data_recv(m, msg, tport);
 	if (res)
+    {
+        drop_log("Recv msg failed, ancillary data recv error %d\n", res);
 		goto exit;
+    }
+    
 
 	/* Capture message data (if valid) & compute return value (always) */
 	if (!err) {
@@ -954,14 +1004,22 @@ restart:
 		res = skb_copy_datagram_iovec(buf, msg_hdr_sz(msg),
 					      m->msg_iov, sz);
 		if (res)
+        {
+            drop_log("Recv msg failed, datagram copy to iovec error %d\n", res);
 			goto exit;
+        }
+        
 		res = sz;
 	} else {
 		if ((sock->state == SS_READY) ||
 		    ((err == TIPC_CONN_SHUTDOWN) || m->msg_control))
 			res = 0;
 		else
+        {
+            drop_log("Recv msg failed, connection reset.  error code %d\n", err);
 			res = -ECONNRESET;
+        }
+        
 	}
 
 	/* Consume received message (optional) */
@@ -1004,7 +1062,11 @@ static int recv_stream(struct kiocb *iocb, struct socket *sock,
 
 	/* Catch invalid receive attempts */
 	if (unlikely(!buf_len))
+    {
+        app_error_log("Receive buffer length is zero");
 		return -EINVAL;
+    }
+    
 
 	lock_sock(sk);
 
@@ -1044,6 +1106,7 @@ restart:
 	/* Discard an empty non-errored message & try again */
 	if ((!sz) && (!err)) {
 		advance_rx_queue(sk);
+        wire_error_log("Recv stream failed, Discard an empty non-errored message\n");
 		goto restart;
 	}
 

@@ -69,8 +69,11 @@ void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
 {
 	if (!node_sub->node)
-		return;
-
+    {        
+		app_error_log("Node unsubscription rejected, node is NULL\n");
+        return;
+    }
+    
 	tipc_node_lock(node_sub->node);
 	list_del_init(&node_sub->nodesub_list);
 	tipc_node_unlock(node_sub->node);

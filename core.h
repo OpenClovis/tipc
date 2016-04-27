@@ -57,6 +57,15 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+// OpenClovis: add private tipc memory and packet drop logging
+#include <linux/skbuff.h>
+#include "cl_mem.h"
+// issued whenever we have to drop a packet
+#define drop_log pr_info
+// issued when the app makes an error (bad params for example)
+#define app_error_log pr_info
+// issued when something bogus is received
+#define wire_error_log pr_info
 
 #define TIPC_MOD_VER "2.0.0"
 

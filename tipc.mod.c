@@ -50,6 +50,7 @@ __attribute__((section("__versions"))) = {
 	{ 0xd41bff34, "sock_no_mmap" },
 	{ 0x71de9b3f, "_copy_to_user" },
 	{ 0xd5f2172f, "del_timer_sync" },
+	{ 0x12c661f7, "skb_queue_purge" },
 	{ 0x2f610cea, "sock_no_socketpair" },
 	{ 0xfc0ff9f4, "sk_alloc" },
 	{ 0xdc8d1dde, "_raw_spin_trylock_bh" },
@@ -73,10 +74,12 @@ __attribute__((section("__versions"))) = {
 	{ 0x85878c16, "dev_remove_pack" },
 	{ 0x8834396c, "mod_timer" },
 	{ 0x3d521894, "netlink_unicast" },
+	{ 0xbe2c0274, "add_timer" },
 	{ 0x64b0c84a, "genl_register_family_with_ops" },
 	{ 0x69088964, "skb_pull" },
 	{ 0x83f4118f, "init_net" },
 	{ 0x82072614, "tasklet_kill" },
+	{ 0x2377f822, "skb_queue_tail" },
 	{ 0xc6cbbc89, "capable" },
 	{ 0x1501bf65, "__wake_up_sync_key" },
 	{ 0xa3278a03, "proto_register" },
@@ -111,6 +114,7 @@ __attribute__((section("__versions"))) = {
 	{ 0x62737e1d, "sock_unregister" },
 	{ 0x32eeaded, "_raw_write_lock_bh" },
 	{ 0xfa66f77c, "finish_wait" },
+	{ 0xd6b8c2b5, "skb_dequeue" },
 	{ 0x50720c5f, "snprintf" },
 	{ 0x2a5e15a5, "dev_add_pack" },
 	{ 0xa3a5be95, "memmove" },
@@ -128,4 +132,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "9C316599259A464FEF4A255");
+MODULE_INFO(srcversion, "53FCD8B1DCAD9998764D765");

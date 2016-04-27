@@ -98,13 +98,18 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 
 	clone = skb_clone(buf, GFP_ATOMIC);
 	if (!clone)
+    {
+        drop_log("send message dropped, cannot clone skb\n");
 		return 0;
+    }
+    
 
 	dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 	delta = dev->hard_header_len - skb_headroom(buf);
 
 	if ((delta > 0) &&
 	    pskb_expand_head(clone, SKB_DATA_ALIGN(delta), 0, GFP_ATOMIC)) {
+        drop_log("send message dropped, pskb_expand_head failure\n");
 		kfree_skb(clone);
 		return 0;
 	}
@@ -130,9 +135,10 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
 
-	if (!net_eq(dev_net(dev), &init_net)) {
+	if (!net_eq(dev_net(dev), &init_net)) {        
 		kfree_skb(buf);
-		return 0;
+        drop_log("Invalid net device\n");
+        return 0;
 	}
 
 	if (likely(eb_ptr->bearer)) {
@@ -142,6 +148,7 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 			return 0;
 		}
 	}
+    // drop_log("Received packet is not for my node or broadcast packet\n");
 	kfree_skb(buf);
 	return 0;
 }

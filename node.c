@@ -72,12 +72,16 @@ struct tipc_node *tipc_node_find(u32 addr)
 	struct hlist_node *pos;
 
 	if (unlikely(!in_own_cluster_exact(addr)))
+    {
+        app_error_log("Node [%x] not in my cluster\n",addr);  
 		return NULL;
+    }    
 
 	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
 		if (node->addr == addr)
 			return node;
 	}
+    app_error_log("Node [%x] not found\n",addr);
 	return NULL;
 }
 
@@ -409,6 +413,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	buf = tipc_cfg_reply_alloc(payload_size);
 	if (!buf) {
 		read_unlock_bh(&tipc_net_lock);
+        drop_log("Failed get node links, no memory\n");
 		return NULL;
 	}
 
