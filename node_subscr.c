@@ -70,7 +70,7 @@ void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
 {
 	if (!node_sub->node)
     {        
-		app_error_log("Node unsubscription rejected, node is NULL\n");
+		// actually, expected: app_error_log("Node unsubscription rejected, node is NULL\n");
         return;
     }
     

@@ -139,7 +139,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	/* Ensure message from node is valid and communication is permitted */
 	if (net_id != tipc_net_id)
     {
-        drop_log("Dropped discovery packet, destined for another TIPC network [0x%x]\n", net_id);
+        // Normal in a multi-tipc cluster environment: drop_log("Dropped discovery packet, destined for another TIPC network [0x%x]\n", net_id);
 		return;
     }
 	if (media_addr.broadcast)

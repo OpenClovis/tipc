@@ -39,6 +39,7 @@
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
+#include "cl_mem.h"
 
 #include <linux/module.h>
 
@@ -67,9 +68,9 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
 
 #if 0 // TEST CODE Periodically exercise the tipc memory
-  
+    static unsigned long int numBufAlloc = 0;
     numBufAlloc++;
-    if (numBufAlloc&0xf)==0)
+    if ((numBufAlloc&0xf)==0)
     {
         skb = tipc_mem_mgmt_get_buf(buf_size);
         if (!skb) pr_warn("TIPC dedicated buffers exhausted.\n");
@@ -78,7 +79,9 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 #endif    
     
 	if (!skb) skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+#ifdef TIPC_LOCAL_MEM_MGMT
     if (!skb) skb = tipc_mem_mgmt_get_buf(buf_size);
+#endif
     if (!skb) pr_warn("TIPC dedicated buffers exhausted.  Packets dropped.\n");
     
 	if (skb) {
@@ -174,8 +177,11 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	pr_info("Activated OpenClovis TIPC (version " TIPC_MOD_VER ")\n");
-
+#ifdef TIPC_LOCAL_MEM_MGMT
+	pr_info("Activated OpenClovis TIPC (version " TIPC_MOD_VER ".memmgmt)\n");
+#else
+ 	pr_info("Activated OpenClovis TIPC (version " TIPC_MOD_VER ")\n");   
+#endif    
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
